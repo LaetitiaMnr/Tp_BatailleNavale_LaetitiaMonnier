@@ -1,0 +1,441 @@
+ALGO : Bataille Navale de Laetitia Monnier.
+BUT : Un jeu qui demande à 2 joueurs de placer leurs bateaux, puis d'essayer de couler ceux de l'autre joueur, en devinant leurs positions.
+ENTREE : La position des bateaux et la case ciblée.
+SORTIE : Si le bateau attaqué est touché ou non et le vainqueur.
+
+CONST MAX <- 8
+
+TYPE
+	carreau = ENREGISTREMENT
+	ligne, colonne : ENTIER
+FINENREGISTREMENT
+
+TYPE
+	bateau = ENREGISTREMENT
+	carreaux : TABLEAU[1..5] DE CARREAU
+FINENREGISTREMENT
+
+TYPE
+	flotte = ENREGISTREMENT
+	bateaux : TABLEAU[1..MAX] DE BATEAU
+FINENREGISTREMENT
+
+PROCEDURE affichageFlotte(flo : flotte; attaque : booleen) // Cette procedure sert à afficher la flotte d'un joueur sur le plateau.
+VAR
+	i, j, x, y : ENTIER
+DEBUT
+	POUR i DE 1 A flo.nbBateaux FAIRE
+		POUR j DE 1 A flo.bateaux[i].nbCarreaux FAIRE
+			SI attaque ALORS // Si on affiche la flotte lors de la phase d'attaque alors...
+				SI flo.bateaux[i].carreaux[j].touche ALORS // ... on affiche uniquement les cases touchées...
+					x <- 5 + (ord(flo.bateaux[i].carreaux[j].colonne) - ord('A')) * 4 // Ce calcul permet de centrer le X dans chaque carré horizontalement.
+					y <- 1 + flo.bateaux[i].carreaux[j].ligne * 2 // Ce calcul permet de centrer le X dans chaque carré verticalement.
+					gotoxy(x, y)
+					ECRIRE('X')
+				FINSI
+			SINON // ... sinon on affiche entièrement les bateaux.
+				x <- 5 + (ord(flo.bateaux[i].carreaux[j].colonne) - ord('A')) * 4 // Ce calcul permet de centrer le O dans chaque carré horizontalement.
+				y <- 1 + flo.bateaux[i].carreaux[j].ligne * 2 // Ce calcul permet de centrer le 0 dans chaque carré verticalement.
+				gotoxy(x, y)
+				ECRIRE('O')
+			FINSI
+		FINPOUR
+	FINPOUR
+	gotoxy(1, 21)
+FINPROCEDURE 
+
+PROCEDURE affichagePlateau() // Cette procedure sert à afficher le plateau vide.
+VAR
+	i, j : ENTIER
+DEBUT
+	ECRIRE(' ') // Affichage des lettres en haut.
+	POUR i DE 0 A 7 FAIRE
+		ECRIRE('   ', char(ord('A') + i))
+	FINPOUR
+	//Ajouter un writeln à cette ligne.
+
+	ECRIRE(' ') // Affichage du côté haut de la première ligne de cases.
+	POUR i DE 0 A 7 FAIRE
+		ECRIRE('   -')
+	FINPOUR
+	//Ajouter un writeln à cette ligne.
+
+	POUR i DE 1 A 8 FAIRE
+		ECRIRE(i) // Affichage des chiffres sur le côté.
+
+		POUR j DE 1 A 9 FAIRE // Affichage des côtés gauche et droite des cases.
+			ECRIRE(' |  ')
+		FINPOUR
+		//Ajouter un writeln à cette ligne.
+
+		ECRIRE(' ') // Affichage des côtés haut et bas des cases.
+		POUR j DE 0 A 7 FAIRE
+			ECRIRE('   -')
+		//Ajouter un writeln à cette ligne.
+	FINPOUR
+	//Ajouter un writeln à cette ligne.
+FINPROCEDURE
+
+FONCTION comparaison(car1, car2 : carreau):BOOLEEN // Cette fonction sert à vérifier si deux cases sont identiques.
+VAR
+	resultat : BOOLEEN
+DEBUT
+	resultat <- FAUX
+	SI (car1.ligne = car2.ligne) ET (car1.colonne = car2.colonne) ALORS // Si les deux cases ont la même ligne et la même colonne alors...
+		resultat <- VRAI // ... oui, les deux cases sont identiques.
+	FINSI
+	comparaison <- resultat
+FINFONCTION
+
+FONCTION verificationBateau(cible : carreau; var bat : bateau; attaque : booleen):BOOLEEN // Cette fonction sert à vérifier si la case ciblée est occupée par le bateau.
+VAR
+	resultat : BOOLEEN
+	compteur : ENTIER
+DEBUT
+	resultat <- FAUX
+	POUR compteur DE 1 A bat.nbCarreaux FAIRE
+		SI comparaison(cible, bat.carreaux[compteur]) ALORS // Si la case ciblée est la même qu'une des cases du bateau alors...
+			resultat <- VRAI // ... oui, la case ciblée est occupée.
+			SI attaque ALORS // Si la case est attaquée alors...
+				bat.carreaux[compteur].touche <- VRAI // ... la case est touchée.
+			FINSI
+		FINSI
+	FINPOUR
+	verificationBateau <- resultat	
+FINFONCTION
+
+FONCTION verificationCoule(bat : bateau):BOOLEEN // Cette fonction permet de vérifier si un bateau est coulé ou non.
+VAR
+	compteur : ENTIER
+	resultat : BOOLEEN
+DEBUT
+	resultat <- VRAI // On part du principe que le bateau est coulé.
+	POUR compteur DE 1 A bat.nbCarreaux FAIRE
+		SI bat.carreaux[compteur].touche = FAUX ALORS // Si il y a au moins une case qui n'est pas touchée, alors le bateau n'est pas coulé.
+			resultat <- FAUX
+		FINSI
+	FINPOUR
+	verificationCoule <- resultat
+FINFONCTION
+
+FONCTION verificationFlotte(cible : carreau; var flo : flotte; attaque : booleen):BOOLEEN // Cette fonction sert à vérifier bateau par bateau si la case ciblée est occupée.
+VAR
+	resultat : BOOLEEN
+	compteur : ENTIER
+DEBUT
+	resultat <- FAUX
+	POUR compteur DE 1 A flo.nbBateaux FAIRE
+		SI verificationBateau(cible, flo.bateaux[compteur], attaque) ALORS // Si la case ciblée est occupée par un des bateaux alors...
+			resultat <- VRAI // ... oui, la case ciblée est occupée.
+			SI attaque ALORS // Si la case est attaquée (et par conséquent, que le bateau est touché) alors...
+				flo.bateaux[compteur].coule <- verificationCoule(flo.bateaux[compteur]) // ... on vérifie si le bateau est coulé.
+				// On ajoute un clrscr ici
+    			affichagePlateau()
+				SI flo.bateaux[compteur].coule ALORS
+					ECRIRE(''Coulé !'')
+				SINON
+					ECRIRE(''Touché !'')
+				FINSI
+				affichageFlotte(flo, VRAI)
+			FINSI
+		FINSI
+	FINPOUR
+	verificationFlotte <- resultat
+FINFONCTION
+
+FONCTION verificationDefaite(flo : flotte):BOOLEEN // Cette fonction permet de vérifier si un a joueur a perdu (tous ses bateaux sont coulés) ou non.
+VAR
+	compteur : ENTIER
+	resultat : BOOLEEN
+DEBUT
+	resultat <- VRAI // On part du principe que le joueur a perdu.
+	POUR compteur DE 1 A flo.nbBateaux FAIRE
+		SI flo.bateaux[compteur].coule = FAUX ALORS // Si il y a au moins un bateau qui n'est pas coulé, alors le joueur n'a pas perdu.
+			resultat <- FAUX
+		FINSI
+	FINPOUR
+	verificationDefaite <- resultat
+FINFONCTION
+
+FONCTION creationCase(ligne : entier; colonne : char):carreau // Cette fonction sert à créer les cases d'un bateau.
+VAR
+	car : carreau
+DEBUT
+	car.ligne <- ligne
+	car.colonne <- colonne
+	car.touche <- FAUX
+	creationCase <- car
+FINFONCTION
+
+FONCTION creationBateau(nbcarreaux : entier; var flo : flotte):bateau // Cette fonction sert à créer et placer un bateau.
+VAR
+	compteur, yDebut, yFin : ENTIER
+	xDebut, xFin : CHAR
+	bat : bateau
+DEBUT
+	ECRIRE(''Bateau taille ''& nbcarreaux &'' : Rentrez la lettre de la première case'')
+	LIRE(xDebut)
+	xDebut <- upCase(xDebut)
+	ECRIRE(''Bateau taille ''& nbcarreaux &'' : Rentrez le chiffre de la première case'')
+	LIRE(yDebut)
+	ECRIRE(''Bateau taille ''& nbcarreaux &'' : Rentrez la lettre de la dernière case'')
+	LIRE(xFin)
+	xFin <- upCase(xFin)
+	ECRIRE(''Bateau taille ''& nbcarreaux &'' : Rentrez le chiffre de la dernière case'')
+	LIRE(yFin)
+	SI (abs(ord(xDebut) - ord(xFin)) + 1 = nbcarreaux) OU (abs(yDebut - yFin) + 1 = nbcarreaux) ALORS // Si la taille du bateau entré par le joueur correspond à la taille demandée...
+		SI xDebut = xFin ALORS // ... et que le bateau forme une colonne droite alors on crée le bateau.
+			SI yDebut > yFin ALORS // On fait en sorte que la valeur de yFin soit supérieure à yDebut pour toujours créer les cases de haut en bas.
+				compteur <- yDebut
+				yDebut <- yFin
+				yFin <- compteur
+			FINSI
+			POUR compteur DE 1 A nbcarreaux FAIRE
+				bat.carreaux[compteur] <- creationCase(yDebut + compteur - 1, xDebut) // On crée chaque case du bateau.
+				SI verificationFlotte(bat.carreaux[compteur], flo, FAUX) ALORS // Si la case créée est déjà occupée alors on recommence la création du bateau.
+					ECRIRE(''Le bateau occupe une ou plusieurs cases déjà utilisées. Veuillez recommencer.'')
+					creationBateau <- creationBateau(nbcarreaux, flo)
+					exit
+				FINSI
+			FINPOUR
+			bat.nbCarreaux <- nbcarreaux
+			bat.coule <- FAUX
+			flo.nbBateaux <- flo.nbBateaux + 1
+			creationBateau <-bat
+		SINON SI yDebut = yFin ALORS // ... et que le bateau forme une ligne droite alors on crée le bateau.
+			SI xDebut > xFin ALORS // On fait en sorte que la valeur de xFin soit supérieure à xDebut pour toujours créer les cases de gauche à droite.
+				compteur <-ord(xDebut)
+				ord(xDebut) <- ord(xFin)
+				ord(xFin) <- compteur
+			FINSI
+			POUR compteur DE 1 A nbcarreaux FAIRE
+				bat.carreaux[compteur] <- creationCase(yDebut, char(ord(xDebut) + compteur - 1)) // On crée chaque case du bateau.
+				SI verificationFlotte(bat.carreaux[compteur], flo, FALSE) ALORS  // Si la case créée est déjà occupée alors on recommence la création du bateau.
+					ECRIRE(''Le bateau occupe une ou plusieurs cases déjà utilisées. Veuillez recommencer.'')
+					creationBateau <- creationBateau(nbcarreaux, flo)
+					exit
+				FINSI
+			FINPOUR
+			bat.nbCarreaux <- nbcarreaux
+			bat.coule <- FAUX
+			flo.nbBateaux <- flo.nbBateaux + 1
+			creationBateau <- bat
+		SINON
+			ECRIRE(''Le bateau n''est pas droit. Veuillez recommencer.'')
+			creationBateau <- creationBateau(nbcarreaux, flo)
+		FINSI
+	SINON
+		ECRIRE(''Le bateau n''a pas la bonne taille. Veuillez recommencer.'')
+		creationBateau <- creationBateau(nbcarreaux, flo)
+	FINSI
+FINFONCTION
+
+PROCEDURE creationFlotte(var flo : flotte; joueur1 : booleen) // Cette procedure sert a créer tous les bateaux d'une flotte.
+DEBUT
+	// AJouter un clrscr ici
+	affichagePlateau()
+	SI joueur1 ALORS
+		ECRIRE(''Joueur 1 : Placez vos bateaux'')
+	SINON
+		ECRIRE(''Joueur 2 : Placez vos bateaux'')
+	FINSI
+	flo.nbBateaux <- 0
+	flo.bateaux[1] <- creationBateau(5, flo)
+	// AJouter un clrscr ici
+    affichagePlateau()
+	affichageFlotte(flo, FAUX)
+	flo.bateaux[2] <- creationBateau(4, flo)
+	// AJouter un clrscr ici
+    affichagePlateau()
+	affichageFlotte(flo, FAUX)
+	flo.bateaux[3] <- creationBateau(3, flo)
+	// AJouter un clrscr ici
+    affichagePlateau()
+	affichageFlotte(flo, FAUX)
+	flo.bateaux[4] <- creationBateau(3, flo)
+	// AJouter un clrscr ici
+    affichagePlateau()
+	affichageFlotte(flo, FAUX)
+	flo.bateaux[5] <- creationBateau(2, flo)
+	// AJouter un clrscr ici
+    affichagePlateau()
+	affichageFlotte(flo, FAUX)
+FINPROCEDURE
+
+FONCTION tir(var flo : flotte):BOOLEEN // Cette fonction sert à attaquer une case du joueur adverse.
+VAR
+	ligne : ENTIER
+	colonne : CHAR
+	cible : carreau
+DEBUT
+	ECRIRE(''Quelle est la lettre de la case que vous voulez attaquer ?'')
+	LIRE(colonne)
+	colonne <- upCase(colonne)
+	ECRIRE(''Quelle est le chiffre de la case que vous voulez attaquer ?'')
+	LIRE(ligne)
+	cible <- creationCase(ligne, colonne)
+	tir <- verificationFlotte(cible, flo, VRAI)
+FINFONCTION
+
+FONCTION tour(var flo : flotte; joueur1 : booleen):BOOLEEN // Cette fonction permet à un joueur de jouer son tour de jeu.
+DEBUT
+	// On ajoute un clrscr ici
+    affichagePlateau()
+    SI joueur1 ALORS
+    	ECRIRE(''Tour du joueur 1'')
+    SINON
+    	ECRIRE(''Tour du joueur 2'')
+    FINSI
+	affichageFlotte(flo, VRAI)
+	SI tir(flo) = FAUX ALORS // Si le tir a raté...
+		// On ajoute un clrscr ici
+    	affichagePlateau()
+    	ECRIRE(''Raté !'')
+    	affichageFlotte(flo, VRAI)
+		tour <- FAUX
+    SINON // ... sinon si le tir a touché.
+		SI verificationDefaite(flo) = FAUX ALORS // Si le joueur adverse a encore des bateaux qui n'ont pas coulé alors la partie continue...
+			tour <- FAUX
+		SINON // ... sinon le joueur actuel gagne la partie.
+			// On ajoute un clrscr ici
+		    affichagePlateau()
+		    SI joueur1 ALORS
+		    	ECRIRE(''Victoire du joueur 1 ! Félicitations !'')
+		    SINON
+		    	ECRIRE(''Victoire du joueur 2 ! Félicitations !'')
+		    FINSI
+    		affichageFlotte(flo, VRAI)
+			tour <- VRAI
+		FINSI
+	FINSI
+    // On met ici le readln pour pas que le programme ne se ferme directement. Plus besoin de l'ajouter dans le programme principal.
+FINFONCTION
+
+	// --- Programme Principal ---
+VAR
+	flotteJ1, flotteJ2 : flotte
+	fin : BOOLEEN
+
+DEBUT
+	creationFlotte(flotteJ1, VRAI)
+	// On ajoute un readln ici
+	creationFlotte(flotteJ2, FAUX)
+	// On ajoute un readln ici
+	TANT QUE fin = FAUX FAIRE
+		fin <- tour(flotteJ2, VRAI)
+		SI fin = FAUX ALORS
+			fin <- tour(flotteJ1, FAUX)
+		FINSI
+	FINTANTQUE
+FIN
+
+	// Jeu d'essai
+
+Joueur 1 : Placez vos bateaux
+Bateau taille 2 : Rentrez la lettre de la première case
+A
+Bateau taille 2 : Rentrez le chiffre de la première case
+5
+Bateau taille 2 : Rentrez la lettre de la dernière case
+A
+Bateau taille 2 : Rentrez le chiffre de la dernière case
+6
+
+Bateau taille 3 : Rentrez la lettre de la première case
+F 
+Bateau taille 3 : Rentrez le chiffre de la première case
+1
+Bateau taille 3 : Rentrez la lettre de la dernière case
+D
+Bateau taille 3 : Rentrez le chiffre de la dernière case
+1
+
+Bateau taille 3 : Rentrez la lettre de la première case
+A 
+Bateau taille 3 : Rentrez le chiffre de la première case
+8
+Bateau taille 3 : Rentrez la lettre de la dernière case
+C
+Bateau taille 3 : Rentrez le chiffre de la dernière case
+8
+
+Bateau taille 4 : Rentrez la lettre de la première case
+A 
+Bateau taille 4 : Rentrez le chiffre de la première case
+7
+Bateau taille 4 : Rentrez la lettre de la dernière case
+D
+Bateau taille 4 : Rentrez le chiffre de la dernière case
+7
+
+Bateau taille 5 : Rentrez la lettre de la première case
+H 
+Bateau taille 5 : Rentrez le chiffre de la première case
+1
+Bateau taille 5 : Rentrez la lettre de la dernière case
+H
+Bateau taille 5 : Rentrez le chiffre de la dernière case
+5
+
+Joueur 2 : Placez vos bateaux
+Bateau taille 2 : Rentrez la lettre de la première case
+A
+Bateau taille 2 : Rentrez le chiffre de la première case
+5
+Bateau taille 2 : Rentrez la lettre de la dernière case
+A
+Bateau taille 2 : Rentrez le chiffre de la dernière case
+6
+
+Bateau taille 3 : Rentrez la lettre de la première case
+F 
+Bateau taille 3 : Rentrez le chiffre de la première case
+1
+Bateau taille 3 : Rentrez la lettre de la dernière case
+D
+Bateau taille 3 : Rentrez le chiffre de la dernière case
+1
+
+Bateau taille 3 : Rentrez la lettre de la première case
+A 
+Bateau taille 3 : Rentrez le chiffre de la première case
+8
+Bateau taille 3 : Rentrez la lettre de la dernière case
+C
+Bateau taille 3 : Rentrez le chiffre de la dernière case
+8
+
+Bateau taille 4 : Rentrez la lettre de la première case
+A 
+Bateau taille 4 : Rentrez le chiffre de la première case
+7
+Bateau taille 4 : Rentrez la lettre de la dernière case
+D
+Bateau taille 4 : Rentrez le chiffre de la dernière case
+7
+
+Bateau taille 5 : Rentrez la lettre de la première case
+H 
+Bateau taille 5 : Rentrez le chiffre de la première case
+1
+Bateau taille 5 : Rentrez la lettre de la dernière case
+H
+Bateau taille 5 : Rentrez le chiffre de la dernière case
+5
+
+Tour du joueur 1
+Quelle est la lettre de la case que vous voulez attaquer ?
+H
+Quelle est le chiffre de la case que vous voulez attaquer ?
+1
+Touché !
+
+Tour du joueur 2
+Quelle est la lettre de la case que vous voulez attaquer ?
+B
+Quelle est le chiffre de la case que vous voulez attaquer ?
+8
+Raté !
+
+Ainsi de suite jusqu'a ce qu'un des joueurs gagnent.
+
